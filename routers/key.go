@@ -3,6 +3,9 @@ package routers
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/soyking/e3ch"
+	"strings"
+	"encoding/json"
+	"fmt"
 )
 
 type Node struct {
@@ -12,9 +15,11 @@ type Node struct {
 }
 
 func parseNode(node *client.Node) *Node {
+	prettyJson := PrettyJson(node.Value)
+	fmt.Printf("Formt json: %v to: %v", string(node.Value), string(prettyJson))
 	return &Node{
 		Key:   string(node.Key),
-		Value: string(node.Value),
+		Value: string(PrettyJson(node.Value)),
 		IsDir: node.IsDir,
 	}
 }
@@ -76,4 +81,32 @@ func putKeyHandler(c *gin.Context, client *client.EtcdHRCHYClient) (interface{},
 
 func delKeyHandler(c *gin.Context, client *client.EtcdHRCHYClient) (interface{}, error) {
 	return nil, client.Delete(c.Param("key"))
+}
+
+
+func PrettyJson(bytes []byte) []byte {
+	jsonString := strings.TrimSpace(string(bytes))
+
+	isObject := strings.HasPrefix(jsonString, "{")
+	isArray := strings.HasPrefix(jsonString, "[")
+
+	// is json?
+	if !isObject && !isArray {
+		return bytes
+	}
+
+
+	if isArray {
+		s := make([]map[string]interface{}, 1)
+		ptr := &s
+		json.Unmarshal(bytes, ptr)
+		pretty, _ := json.MarshalIndent(ptr, "", "    ")
+		return pretty
+	} else {
+		m := make(map[string]interface{})
+		ptr := &m
+		json.Unmarshal(bytes, ptr)
+		pretty, _ := json.MarshalIndent(ptr, "", "    ")
+		return pretty
+	}
 }
